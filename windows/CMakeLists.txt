@@ -82,6 +82,24 @@ if(NOT USE_SYSTEM_ONNXRUNTIME)
 
   message(STATUS "Downloading ONNX Runtime from: ${ONNXRUNTIME_URL}")
 
+  # === e-PhotoID Express fork (AI-BG-005, doc/known_bugs.md bug 25) ===
+  # Upstream downloaded this zip via file(DOWNLOAD ... SHOW_PROGRESS) with no
+  # EXPECTED_HASH: a compromised release, a tampered mirror, or an in-transit
+  # substitution would be linked into the app silently. This binary processes
+  # the user's identity photo before any human review, so it is pinned here
+  # to the exact SHA256 we ourselves downloaded, verified, and benchmarked
+  # (see doc/p1_ai_bg_005_supply_chain_report.md in the app repo). Unknown
+  # versions fail loudly instead of downloading unverified content.
+  set(ONNXRUNTIME_KNOWN_HASHES_win_x64_1.23.0
+      "72c23470310ec79a7d42d27fe9d257e6c98540c73fa5a1db1f67f538c6c16f2f")
+  set(ONNXRUNTIME_HASH_VAR "ONNXRUNTIME_KNOWN_HASHES_win_${ONNXRUNTIME_ARCH}_${ONNXRUNTIME_VERSION}")
+  if(NOT DEFINED ${ONNXRUNTIME_HASH_VAR})
+    message(FATAL_ERROR
+      "e-PhotoID Express fork: no pinned SHA256 for onnxruntime-win-${ONNXRUNTIME_ARCH}-${ONNXRUNTIME_VERSION}.zip. "
+      "Refusing to download an unverified binary. Compute and pin its hash in this fork before using this version.")
+  endif()
+  set(ONNXRUNTIME_EXPECTED_HASH "${${ONNXRUNTIME_HASH_VAR}}")
+
   # Create a directory for the downloaded library
   set(ONNXRUNTIME_DOWNLOAD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onnxruntime")
 
@@ -95,7 +113,8 @@ if(NOT USE_SYSTEM_ONNXRUNTIME)
 
     # Download the zipfile
     set(ONNXRUNTIME_ZIPFILE "${ONNXRUNTIME_DOWNLOAD_DIR}/onnxruntime.zip")
-    file(DOWNLOAD ${ONNXRUNTIME_URL} ${ONNXRUNTIME_ZIPFILE} SHOW_PROGRESS)
+    file(DOWNLOAD ${ONNXRUNTIME_URL} ${ONNXRUNTIME_ZIPFILE} SHOW_PROGRESS
+         EXPECTED_HASH SHA256=${ONNXRUNTIME_EXPECTED_HASH})
 
     # Extract the zipfile
     message(STATUS "Extracting ONNX Runtime...")
